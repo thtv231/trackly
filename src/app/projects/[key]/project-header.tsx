@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AssistantPanel } from "./assistant-panel";
 
 type Props = {
   project: { key: string; name: string };
@@ -38,6 +39,7 @@ export function ProjectHeader({ project, view, children }: Props) {
           </Link>
         ))}
       </nav>
+      <AssistantPanel projectKey={project.key} />
       {children}
     </div>
   );
