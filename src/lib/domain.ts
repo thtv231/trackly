@@ -27,3 +27,11 @@ export const PRIORITY_LABEL: Record<Priority, string> = {
 export const POINTS = [0, 1, 2, 3, 5, 8, 13] as const;
 
 export type Role = "admin" | "member" | "viewer";
+
+/** Allowed workflow moves from STORIES.md: status → the statuses it may move to next. */
+export const TRANSITIONS: Record<Status, readonly Status[]> = {
+  todo: ["in_progress"],
+  in_progress: ["todo", "in_review"],
+  in_review: ["in_progress", "done"],
+  done: ["in_progress"],
+};

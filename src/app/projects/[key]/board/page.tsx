@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProjectBoard({ params }: Props) {
-  await requireUser();
+  const user = await requireUser();
   const { key } = await params;
   const [project] = await query<{ id: number; key: string; name: string }>(
     "SELECT id, key, name FROM projects WHERE key = $1",
@@ -40,7 +40,7 @@ export default async function ProjectBoard({ params }: Props) {
           List view
         </Link>
       </div>
-      <Board cards={cards} />
+      <Board cards={cards} canMove={user.role !== "viewer"} />
     </>
   );
 }
