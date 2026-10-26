@@ -1,9 +1,9 @@
 import { now } from "./clock";
-import { query } from "./db";
+import { transaction } from "./db";
 import { STATUSES, TRANSITIONS, type Status } from "./domain";
 import { parseIssueKey } from "./issues";
 
-// Moving an issue between statuses (S11). WIP limit (S13), resolvedAt (S14) and activity (S21) come later.
+// Moving an issue between statuses (S11), with the WIP limit (S13). resolvedAt (S14) and activity (S21) come later.
 
 export type TransitionResult = { status: 200 } | { status: 400 | 404 | 409; error: string };
 
@@ -16,19 +16,26 @@ export async function transitionIssue(key: string, to: unknown): Promise<Transit
   if (!parsed) return { status: 404, error: "Issue not found" };
   if (!STATUSES.includes(to as Status)) return { status: 400, error: `Status must be one of ${STATUSES.join(", ")}` };
 
-  const [issue] = await query<{ id: number; status: Status }>(
-    `SELECT i.id, i.status FROM issues i JOIN projects p ON p.id = i.project_id
-      WHERE p.key = $1 AND i.number = $2`,
-    [parsed.projectKey, parsed.number],
-  );
-  if (!issue) return { status: 404, error: "Issue not found" };
-  if (!canTransition(issue.status, to as Status)) return { status: 409, error: "Transition not allowed" };
-
-  // The status in WHERE makes a concurrent move of the same issue fail instead of skipping the workflow.
-  const moved = await query(
-    "UPDATE issues SET status = $1, updated_at = $2 WHERE id = $3 AND status = $4 RETURNING id",
-    [to, await now(), issue.id, issue.status],
-  );
-  if (moved.length === 0) return { status: 409, error: "Transition not allowed" };
-  return { status: 200 };
+  const at = await now();
+  return transaction(async (q) => {
+    // Locking the project row serializes moves within a project, so two moves can't both take the last WIP slot.
+    const [issue] = await q<{ id: number; status: Status; project_id: number; wip_limit: number }>(
+      `SELECT i.id, i.status, p.id AS project_id, p.wip_limit
+         FROM projects p JOIN issues i ON i.project_id = p.id
+        WHERE p.key = $1 AND i.number = $2
+          FOR UPDATE OF p`,
+      [parsed.projectKey, parsed.number],
+    );
+    if (!issue) return { status: 404, error: "Issue not found" };
+    if (!canTransition(issue.status, to as Status)) return { status: 409, error: "Transition not allowed" };
+    if (to === "in_progress") {
+      const [{ n }] = await q<{ n: number }>(
+        "SELECT count(*)::int AS n FROM issues WHERE project_id = $1 AND status = 'in_progress'",
+        [issue.project_id],
+      );
+      if (n >= issue.wip_limit) return { status: 409, error: "WIP limit reached" };
+    }
+    await q("UPDATE issues SET status = $1, updated_at = $2 WHERE id = $3", [to, at, issue.id]);
+    return { status: 200 };
+  });
 }
