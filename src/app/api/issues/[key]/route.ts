@@ -64,3 +64,20 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (result.status !== 200) return Response.json({ error: result.error }, { status: result.status });
   return Response.json({ key });
 }
+
+// DELETE /api/issues/[key] (admin only) → 200. The project's next_number is untouched, so the key is never reused.
+export async function DELETE(_req: Request, { params }: Ctx) {
+  const user = await apiUser();
+  if (user instanceof Response) return user;
+  if (user.role !== "admin") return Response.json({ error: "Only admins can delete issues" }, { status: 403 });
+  const { key } = await params;
+  const parsed = parseIssueKey(key);
+  if (!parsed) return Response.json({ error: "Issue not found" }, { status: 404 });
+
+  const deleted = await query(
+    `DELETE FROM issues WHERE number = $2 AND project_id = (SELECT id FROM projects WHERE key = $1) RETURNING id`,
+    [parsed.projectKey, parsed.number],
+  );
+  if (deleted.length === 0) return Response.json({ error: "Issue not found" }, { status: 404 });
+  return Response.json({ key });
+}

@@ -93,6 +93,7 @@ export default async function IssuePage({ params }: Props) {
       <IssueDetails
         issueKey={issueKey}
         canEdit={canEdit}
+        canDelete={user.role === "admin"}
         fields={fields}
         values={{
           title: issue.title,

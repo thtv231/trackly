@@ -10,6 +10,7 @@ type Values = { title: string; priority: Priority; assignee: string; points: str
 type Props = {
   issueKey: string;
   canEdit: boolean;
+  canDelete: boolean;
   fields: Field[];
   values: Values;
   assignees: { email: string; name: string }[];
@@ -21,12 +22,13 @@ const input =
 
 // Title and sidebar of the issue page (S07). Edit swaps the title and the Priority, Assignee and Points
 // values for inputs in place; Save sends a PATCH and re-renders the page with the saved values.
-export function IssueDetails({ issueKey, canEdit, fields, values, assignees, children }: Props) {
+export function IssueDetails({ issueKey, canEdit, canDelete, fields, values, assignees, children }: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(values);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [, startTransition] = useTransition();
   const set = (patch: Partial<Values>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -60,6 +62,18 @@ export function IssueDetails({ issueKey, canEdit, fields, values, assignees, chi
       router.refresh();
       setEditing(false);
     });
+  }
+
+  async function remove() {
+    const r = await fetch(`/api/issues/${issueKey}`, { method: "DELETE" });
+    if (!r.ok) {
+      const body = await r.json().catch(() => null);
+      setError(body?.error ?? "Could not delete the issue");
+      setConfirming(false);
+      return;
+    }
+    router.push(`/projects/${issueKey.split("-")[0]}`);
+    router.refresh();
   }
 
   function editor(kind: NonNullable<Field["edit"]>) {
@@ -164,6 +178,35 @@ export function IssueDetails({ issueKey, canEdit, fields, values, assignees, chi
                 Edit
               </button>
             )}
+            {canDelete && !editing &&
+              (confirming ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setConfirming(false)}
+                    className={`${button} border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50`}
+                  >
+                    Keep
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="confirm-delete"
+                    onClick={remove}
+                    className={`${button} bg-red-600 text-white hover:bg-red-700`}
+                  >
+                    Confirm delete
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  data-testid="issue-delete"
+                  onClick={() => setConfirming(true)}
+                  className={`${button} border border-red-300 bg-white text-red-700 hover:bg-red-50`}
+                >
+                  Delete
+                </button>
+              ))}
           </div>
         )}
       </div>
