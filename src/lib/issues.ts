@@ -1,4 +1,5 @@
 import { logActivity } from "./activity";
+import { notifyAssigned } from "./notifications";
 import type { User } from "./auth";
 import { now } from "./clock";
 import { query, transaction } from "./db";
@@ -89,6 +90,7 @@ export async function createIssue(body: unknown, reporter: User): Promise<Create
         input.points, at],
     );
     await logActivity(q, id, reporter.id, "created", at);
+    if (assigneeId !== null) await notifyAssigned(q, id, assigneeId, reporter, `${project.key}-${number}`, at);
     return number;
   });
   return { status: 201, key: `${project.key}-${number}` };
@@ -212,6 +214,10 @@ export async function updateIssue(key: string, body: unknown, actor: User): Prom
     }
     if ("assignee_id" in columns && columns.assignee_id !== old.assignee_id) {
       await logActivity(q, issue.id, actor.id, "assignee", at, old.assignee_id, columns.assignee_id as number | null);
+      if (columns.assignee_id !== null) {
+        const key = `${parsed.projectKey}-${parsed.number}`;
+        await notifyAssigned(q, issue.id, columns.assignee_id as number, actor, key, at);
+      }
     }
   });
   return { status: 200 };

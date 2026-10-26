@@ -1,7 +1,8 @@
 import { apiUser } from "@/lib/auth";
 import { now } from "@/lib/clock";
-import { query } from "@/lib/db";
+import { transaction } from "@/lib/db";
 import { parseIssueKey } from "@/lib/issues";
+import { notifyMentioned } from "@/lib/notifications";
 
 type Ctx = { params: Promise<{ key: string }> };
 
@@ -27,13 +28,18 @@ export async function POST(req: Request, { params }: Ctx) {
     return Response.json({ error: `Comment must be ${COMMENT_MAX} characters or fewer` }, { status: 400 });
   }
 
-  const [row] = await query<{ id: number; created_at: Date }>(
-    `INSERT INTO comments (issue_id, author_id, body, created_at)
-     SELECT i.id, $3, $4, $5 FROM issues i JOIN projects p ON p.id = i.project_id
-      WHERE p.key = $1 AND i.number = $2
-     RETURNING id, created_at`,
-    [parsed.projectKey, parsed.number, user.id, body, await now()],
-  );
+  const at = await now();
+  const row = await transaction(async (q) => {
+    const [inserted] = await q<{ id: number; issue_id: number; created_at: Date }>(
+      `INSERT INTO comments (issue_id, author_id, body, created_at)
+       SELECT i.id, $3, $4, $5 FROM issues i JOIN projects p ON p.id = i.project_id
+        WHERE p.key = $1 AND i.number = $2
+       RETURNING id, issue_id, created_at`,
+      [parsed.projectKey, parsed.number, user.id, body, at],
+    );
+    if (inserted) await notifyMentioned(q, inserted.issue_id, body, user, `${parsed.projectKey}-${parsed.number}`, at);
+    return inserted;
+  });
   if (!row) return Response.json({ error: "Issue not found" }, { status: 404 });
   const comment: Comment = { id: row.id, author: user.name, body, created_at: row.created_at.toISOString() };
   return Response.json({ comment }, { status: 201 });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { currentUser } from "@/lib/auth";
+import { unreadCount } from "@/lib/notifications";
 import { LogoutButton } from "./logout-button";
 import "./globals.css";
 
@@ -16,6 +17,7 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
+  const unread = user ? await unreadCount(user.id) : 0;
   return (
     <html lang="en" className={`h-full antialiased ${heading.variable} ${body.variable} ${code.variable}`}>
       <body className="flex min-h-full flex-col">
@@ -30,8 +32,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <Link href="/" className="font-medium text-zinc-600 hover:text-indigo-600">
                   Projects
                 </Link>
-                <Link href="/notifications" className="font-medium text-zinc-600 hover:text-indigo-600">
+                <Link href="/notifications" className="flex items-center gap-1.5 font-medium text-zinc-600 hover:text-indigo-600">
                   Notifications
+                  {unread > 0 && (
+                    <span
+                      data-testid="notification-count"
+                      className="rounded-full bg-indigo-600 px-1.5 py-0.5 text-xs font-semibold leading-none text-white"
+                    >
+                      {unread}
+                    </span>
+                  )}
                 </Link>
                 <div className="ml-auto flex items-center gap-4">
                   <span className="text-sm text-zinc-600">
