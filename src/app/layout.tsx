@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { currentUser } from "@/lib/auth";
 import { LogoutButton } from "./logout-button";
 import "./globals.css";
+
+const heading = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-heading" });
+const body = Instrument_Sans({ subsets: ["latin"], variable: "--font-body" });
+const code = JetBrains_Mono({ subsets: ["latin"], variable: "--font-code" });
 
 export const metadata: Metadata = {
   title: { default: "Trackly", template: "%s · Trackly" },
@@ -12,12 +17,12 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${heading.variable} ${body.variable} ${code.variable}`}>
       <body className="flex min-h-full flex-col">
-        <header className="border-b border-zinc-200 bg-white">
+        <header className="border-b border-line bg-panel/80 backdrop-blur">
           <nav className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-            <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-zinc-900">
-              <span className="inline-block h-6 w-6 rounded-md bg-indigo-600" aria-hidden />
+            <Link href="/" className="flex items-center gap-2 font-display text-xl font-bold tracking-tight text-brand">
+              <span className="inline-block h-6 w-6 rounded-md bg-brand ring-2 ring-accent ring-offset-2 ring-offset-panel" aria-hidden />
               Trackly
             </Link>
             {user && (

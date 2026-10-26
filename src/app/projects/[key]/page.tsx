@@ -12,6 +12,7 @@ import {
   type Status,
 } from "@/lib/domain";
 import { IssueTable, type Filters } from "./issue-table";
+import { ProjectHeader } from "./project-header";
 
 type Props = {
   params: Promise<{ key: string }>;
@@ -68,29 +69,21 @@ export default async function ProjectIssues({ params, searchParams }: Props) {
   );
   return (
     <>
-      <div className="mb-6 flex items-center gap-3">
-        <h1 className="text-2xl font-bold">{project.name}</h1>
-        <span className="rounded-md bg-indigo-50 px-2 py-0.5 font-mono text-sm font-semibold text-indigo-700">
-          {project.key}
-        </span>
-        <Link
-          href={`/projects/${project.key}/board`}
-          className="ml-auto text-sm font-medium text-indigo-600 hover:underline"
-        >
-          Board
-        </Link>
+      <ProjectHeader project={project} view="list">
         {user.role !== "viewer" && (
           <Link
             href={`/projects/${project.key}/new`}
             data-testid="new-issue"
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 hover:-translate-y-px hover:shadow-md hover:brightness-105"
           >
             New issue
           </Link>
         )}
-      </div>
+      </ProjectHeader>
       {issues.length === 0 ? (
-        <p className="text-zinc-600">No issues yet.</p>
+        <p className="rounded-xl border border-dashed border-line bg-panel/70 px-4 py-8 text-center text-ink-muted">
+          No issues yet.
+        </p>
       ) : (
         <IssueTable
           issues={issues.map(({ number, ...i }) => ({

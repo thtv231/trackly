@@ -13,6 +13,7 @@ import {
   type Priority,
   type Status,
 } from "@/lib/domain";
+import { PriorityMark, StatusBadge } from "./badges";
 
 export type IssueRow = {
   key: string;
@@ -79,6 +80,9 @@ export function IssueTable({ issues, initialFilters }: Props) {
         i.title.toLowerCase().includes(needle)),
   );
 
+  const field =
+    "rounded-lg border border-line bg-panel px-3 py-2 text-sm shadow-sm transition-colors duration-200 hover:border-brand/40 focus:border-brand focus:ring-2 focus:ring-brand/15 focus:outline-none";
+
   return (
     <>
       <div className="mb-4 flex flex-wrap gap-3">
@@ -89,7 +93,7 @@ export function IssueTable({ issues, initialFilters }: Props) {
           placeholder="Search by title or key"
           aria-label="Search issues"
           data-testid="issue-search"
-          className="w-full max-w-sm rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+          className={`w-full max-w-sm ${field}`}
         />
         {SELECTS.map((f) => (
           <select
@@ -98,7 +102,7 @@ export function IssueTable({ issues, initialFilters }: Props) {
             onChange={(e) => setFilter(f.name, e.target.value)}
             aria-label={`Filter by ${f.label.toLowerCase()}`}
             data-testid={`filter-${f.name}`}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+            className={`${field} ${filters[f.name] ? "border-brand bg-brand-soft text-brand-strong" : ""}`}
           >
             <option value="">All {f.label.toLowerCase()}</option>
             {f.codes.map((c) => (
@@ -108,55 +112,61 @@ export function IssueTable({ issues, initialFilters }: Props) {
             ))}
           </select>
         ))}
+        <span className="ml-auto self-center text-sm text-ink-muted">
+          {shown.length} of {issues.length} issues
+        </span>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-2xl border border-line bg-panel shadow-[0_1px_2px_rgb(0_0_0/0.04),0_8px_24px_-12px_rgb(14_79_71/0.18)]">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50 text-zinc-600">
+          <thead className="border-b border-line bg-surface/60 text-xs tracking-wider text-ink-muted uppercase">
             <tr>
-              <th className="px-4 py-2 font-medium">Key</th>
-              <th className="px-4 py-2 font-medium">Title</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium">Priority</th>
-              <th className="px-4 py-2 font-medium">Assignee</th>
+              <th className="px-4 py-3 font-semibold">Key</th>
+              <th className="px-4 py-3 font-semibold">Title</th>
+              <th className="px-4 py-3 font-semibold">Status</th>
+              <th className="px-4 py-3 font-semibold">Priority</th>
+              <th className="px-4 py-3 font-semibold">Assignee</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-line/70">
             {shown.map((i) => (
               <tr
                 key={i.key}
                 data-testid="issue-row"
-                className="hover:bg-zinc-50"
+                className="group transition-colors duration-150 hover:bg-brand-soft/50"
               >
-                <td className="px-4 py-2 font-mono whitespace-nowrap">
+                <td className="border-l-2 border-transparent px-4 py-3 font-mono text-xs whitespace-nowrap transition-colors duration-150 group-hover:border-accent">
                   <Link
                     href={`/issues/${i.key}`}
                     data-testid="issue-key"
-                    className="font-semibold text-indigo-600 hover:underline"
+                    className="font-semibold text-brand hover:text-accent"
                   >
                     {i.key}
                   </Link>
                 </td>
                 <td
                   data-testid="issue-title"
-                  className="px-4 py-2 text-zinc-900"
+                  className="px-4 py-3 font-medium text-ink"
                 >
                   {i.title}
                 </td>
                 <td
                   data-testid="issue-status"
-                  className="px-4 py-2 whitespace-nowrap"
+                  className="px-4 py-3 whitespace-nowrap"
                 >
-                  {STATUS_LABEL[i.status]}
+                  <StatusBadge status={i.status} />
                 </td>
                 <td
                   data-testid="issue-priority"
-                  className="px-4 py-2 whitespace-nowrap"
+                  className="px-4 py-3 whitespace-nowrap text-ink-muted"
                 >
-                  {PRIORITY_LABEL[i.priority]}
+                  <span className="inline-flex items-center gap-2">
+                    <PriorityMark priority={i.priority} />
+                    {PRIORITY_LABEL[i.priority]}
+                  </span>
                 </td>
                 <td
                   data-testid="issue-assignee"
-                  className="px-4 py-2 whitespace-nowrap text-zinc-700"
+                  className={`px-4 py-3 whitespace-nowrap ${i.assignee ? "text-ink" : "text-ink-muted italic"}`}
                 >
                   {i.assignee ?? "Unassigned"}
                 </td>
@@ -165,7 +175,7 @@ export function IssueTable({ issues, initialFilters }: Props) {
           </tbody>
         </table>
         {shown.length === 0 && (
-          <p className="px-4 py-3 text-sm text-zinc-600">
+          <p className="px-4 py-6 text-center text-sm text-ink-muted">
             No issues match your search or filters.
           </p>
         )}
