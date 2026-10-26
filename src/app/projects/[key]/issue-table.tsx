@@ -57,13 +57,17 @@ const SELECTS = [
   },
 ] as const;
 
+const PAGE_SIZE = 25;
+
 export function IssueTable({ issues, initialFilters, today }: Props) {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>(initialFilters);
+  const [page, setPage] = useState(0);
 
   function setFilter(name: keyof Filters, value: string) {
     const next = { ...filters, [name]: value } as Filters;
     setFilters(next);
+    setPage(0);
     const url = new URL(window.location.href);
     for (const [k, v] of Object.entries(next)) {
       if (v) url.searchParams.set(k, v);
@@ -83,6 +87,11 @@ export function IssueTable({ issues, initialFilters, today }: Props) {
         i.title.toLowerCase().includes(needle)),
   );
 
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const start = current * PAGE_SIZE;
+  const pageRows = shown.slice(start, start + PAGE_SIZE);
+
   // Narrow screens drop the assignee column and the priority word so the
   // table fits 375 px without scrolling sideways.
   const cell = "px-3 py-3 sm:px-4";
@@ -95,7 +104,10 @@ export function IssueTable({ issues, initialFilters, today }: Props) {
         <input
           type="search"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
           placeholder="Search by title or key"
           aria-label="Search issues"
           data-testid="issue-search"
@@ -136,7 +148,7 @@ export function IssueTable({ issues, initialFilters, today }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-line/70">
-            {shown.map((i) => (
+            {pageRows.map((i) => (
               <tr
                 key={i.key}
                 data-testid="issue-row"
@@ -195,6 +207,34 @@ export function IssueTable({ issues, initialFilters, today }: Props) {
           </p>
         )}
       </div>
+      {shown.length > 0 && (
+        <nav
+          aria-label="Pagination"
+          className="mt-4 flex items-center justify-end gap-3 text-sm text-ink-muted"
+        >
+          <span data-testid="page-info">
+            {start + 1}–{start + pageRows.length} of {shown.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage(current - 1)}
+            disabled={current === 0}
+            data-testid="page-prev"
+            className={`${field} disabled:cursor-not-allowed disabled:opacity-50`}
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            onClick={() => setPage(current + 1)}
+            disabled={current >= pages - 1}
+            data-testid="page-next"
+            className={`${field} disabled:cursor-not-allowed disabled:opacity-50`}
+          >
+            Next
+          </button>
+        </nav>
+      )}
     </>
   );
 }
