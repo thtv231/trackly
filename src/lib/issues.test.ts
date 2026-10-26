@@ -130,12 +130,12 @@ describe("updateIssue", () => {
 
   it("changes only the given fields", async () => {
     const before = await row(4);
-    expect(await updateIssue("TRK-4", { points: 5, assignee: "bob@trackly.test" })).toEqual({ status: 200 });
+    expect(await updateIssue("TRK-4", { points: 5, assignee: "bob@trackly.test" }, alice)).toEqual({ status: 200 });
     expect(await row(4)).toEqual({ ...before, points: 5, assignee: "bob@trackly.test" });
   });
 
   it("returns 404 for a missing issue and 400 for a viewer as assignee", async () => {
-    expect((await updateIssue("TRK-999", { title: "x" })).status).toBe(404);
-    expect((await updateIssue("TRK-4", { assignee: "dave@trackly.test" })).status).toBe(400);
+    expect((await updateIssue("TRK-999", { title: "x" }, alice)).status).toBe(404);
+    expect((await updateIssue("TRK-4", { assignee: "dave@trackly.test" }, alice)).status).toBe(400);
   });
 });

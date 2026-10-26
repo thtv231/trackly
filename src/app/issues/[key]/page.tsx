@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { issueActivity } from "@/lib/activity";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import {
@@ -75,6 +76,7 @@ export default async function IssuePage({ params }: Props) {
       ORDER BY c.created_at, c.id`,
     [issue.project_key, issue.number],
   );
+  const activity = await issueActivity(issue.project_key, issue.number);
   const canEdit = user.role !== "viewer";
   const assignees = canEdit
     ? await query<{ email: string; name: string }>(
@@ -138,6 +140,26 @@ export default async function IssuePage({ params }: Props) {
             </div>
           </section>
           <IssueComments issueKey={issueKey} comments={comments} canComment={canEdit} />
+          <section className="rounded-xl border border-line bg-panel p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-medium text-ink-muted">Activity</h2>
+            <ol className="space-y-2 border-l-2 border-brand-soft pl-4">
+              {activity.map((a) => (
+                <li key={a.id} data-testid="activity-item" className="relative text-sm text-ink">
+                  <span className="absolute top-1.5 -left-[1.3rem] h-2 w-2 rounded-full bg-brand" aria-hidden />
+                  <span className="font-medium">{a.actor}</span>{" "}
+                  {a.kind === "created" ? (
+                    "created the issue"
+                  ) : (
+                    <>
+                      changed {a.kind} from <span className="font-medium">{a.from}</span> to{" "}
+                      <span className="font-medium">{a.to}</span>
+                    </>
+                  )}
+                  <span className="ml-2 text-xs text-ink-muted">{formatDate(a.createdAt)}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
         </div>
       </IssueDetails>
     </>

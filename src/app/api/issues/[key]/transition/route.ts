@@ -12,7 +12,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const body = await req.json().catch(() => undefined);
   if (body === undefined) return Response.json({ error: "Request body must be JSON" }, { status: 400 });
 
-  const result = await transitionIssue(key, (body as { to?: unknown } | null)?.to);
+  const result = await transitionIssue(key, (body as { to?: unknown } | null)?.to, user);
   if (result.status !== 200) return Response.json({ error: result.error }, { status: result.status });
   return Response.json({ key, status: body.to });
 }

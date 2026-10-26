@@ -60,7 +60,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const body = await req.json().catch(() => undefined);
   if (body === undefined) return Response.json({ error: "Request body must be JSON" }, { status: 400 });
 
-  const result = await updateIssue(key, body);
+  const result = await updateIssue(key, body, user);
   if (result.status !== 200) return Response.json({ error: result.error }, { status: result.status });
   return Response.json({ key });
 }

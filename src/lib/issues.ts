@@ -1,3 +1,4 @@
+import { logActivity } from "./activity";
 import type { User } from "./auth";
 import { now } from "./clock";
 import { query, transaction } from "./db";
@@ -80,13 +81,14 @@ export async function createIssue(body: unknown, reporter: User): Promise<Create
       "UPDATE projects SET next_number = next_number + 1 WHERE id = $1 RETURNING next_number - 1 AS number",
       [project.id],
     );
-    await q(
+    const [{ id }] = await q<{ id: number }>(
       `INSERT INTO issues (project_id, number, title, description, type, priority, assignee_id, reporter_id, points,
                            created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10) RETURNING id`,
       [project.id, number, input.title, input.description, input.type, input.priority, assigneeId, reporter.id,
         input.points, at],
     );
+    await logActivity(q, id, reporter.id, "created", at);
     return number;
   });
   return { status: 201, key: `${project.key}-${number}` };
@@ -157,8 +159,9 @@ function isIsoDate(s: string): boolean {
 
 export type UpdateResult = { status: 200 } | { status: 400 | 404; error: string };
 
-/** Validate and apply a partial update. Only the fields present in the body change. */
-export async function updateIssue(key: string, body: unknown): Promise<UpdateResult> {
+/** Validate and apply a partial update. Only the fields present in the body change; changes of priority or
+ *  assignee are written to the activity log as `actor`. */
+export async function updateIssue(key: string, body: unknown, actor: User): Promise<UpdateResult> {
   const parsed = parseIssueKey(key);
   if (!parsed) return { status: 404, error: "Issue not found" };
   const checked = validateIssuePatch(body);
@@ -195,6 +198,21 @@ export async function updateIssue(key: string, body: unknown): Promise<UpdateRes
   columns.updated_at = await now();
   const names = Object.keys(columns);
   const sets = names.map((name, i) => `${name} = $${i + 2}`).join(", ");
-  await query(`UPDATE issues SET ${sets} WHERE id = $1`, [issue.id, ...names.map((n) => columns[n])]);
+  await transaction(async (q) => {
+    // Lock the row and reread the old values, so a concurrent edit can't make the log's "from" wrong.
+    const [old] = await q<{ priority: Priority; assignee_id: number | null }>(
+      "SELECT priority, assignee_id FROM issues WHERE id = $1 FOR UPDATE",
+      [issue.id],
+    );
+    if (!old) return;
+    await q(`UPDATE issues SET ${sets} WHERE id = $1`, [issue.id, ...names.map((n) => columns[n])]);
+    const at = columns.updated_at as Date;
+    if (input.priority !== undefined && input.priority !== old.priority) {
+      await logActivity(q, issue.id, actor.id, "priority", at, old.priority, input.priority);
+    }
+    if ("assignee_id" in columns && columns.assignee_id !== old.assignee_id) {
+      await logActivity(q, issue.id, actor.id, "assignee", at, old.assignee_id, columns.assignee_id as number | null);
+    }
+  });
   return { status: 200 };
 }

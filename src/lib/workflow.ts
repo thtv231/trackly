@@ -1,9 +1,11 @@
+import { logActivity } from "./activity";
+import type { User } from "./auth";
 import { now } from "./clock";
 import { transaction } from "./db";
 import { STATUSES, TRANSITIONS, type Status } from "./domain";
 import { parseIssueKey } from "./issues";
 
-// Moving an issue between statuses (S11), with the WIP limit (S13) and resolvedAt (S14). Activity (S21) comes later.
+// Moving an issue between statuses (S11), with the WIP limit (S13), resolvedAt (S14) and the activity log (S21).
 
 export type TransitionResult = { status: 200 } | { status: 400 | 404 | 409; error: string };
 
@@ -11,7 +13,7 @@ export function canTransition(from: Status, to: Status): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
-export async function transitionIssue(key: string, to: unknown): Promise<TransitionResult> {
+export async function transitionIssue(key: string, to: unknown, actor: User): Promise<TransitionResult> {
   const parsed = parseIssueKey(key);
   if (!parsed) return { status: 404, error: "Issue not found" };
   if (!STATUSES.includes(to as Status)) return { status: 400, error: `Status must be one of ${STATUSES.join(", ")}` };
@@ -42,6 +44,7 @@ export async function transitionIssue(key: string, to: unknown): Promise<Transit
       to === "done" ? at : null,
       issue.id,
     ]);
+    await logActivity(q, issue.id, actor.id, "status", at, issue.status, to as Status);
     return { status: 200 };
   });
 }

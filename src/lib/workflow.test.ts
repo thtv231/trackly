@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import type { User } from "./auth";
 import { query } from "./db";
 import { STATUSES, type Status } from "./domain";
 import { canTransition, transitionIssue } from "./workflow";
@@ -13,6 +14,11 @@ const ALLOWED: [Status, Status][] = [
   ["in_review", "done"],
   ["done", "in_progress"],
 ];
+let alice: User;
+beforeAll(async () => {
+  [alice] = await query<User>("SELECT id, email, handle, name, role FROM users WHERE email = 'alice@trackly.test'");
+});
+
 const isAllowed = (from: Status, to: Status) => ALLOWED.some(([f, t]) => f === from && t === to);
 
 const issueWhere = "project_id = (SELECT id FROM projects WHERE key = $1) AND number = $2";
@@ -55,7 +61,7 @@ describe("transitionIssue: workflow rules", () => {
     for (const [from, to] of ALLOWED) {
       await boardWith("TRK", []);
       await setStatus("TRK-1", from);
-      expect(await transitionIssue("TRK-1", to), `${from} → ${to}`).toEqual({ status: 200 });
+      expect(await transitionIssue("TRK-1", to, alice), `${from} → ${to}`).toEqual({ status: 200 });
       expect(await statusOf("TRK-1")).toBe(to);
     }
   });
@@ -66,7 +72,7 @@ describe("transitionIssue: workflow rules", () => {
         if (isAllowed(from, to)) continue;
         await boardWith("TRK", []);
         await setStatus("TRK-1", from);
-        expect(await transitionIssue("TRK-1", to), `${from} → ${to}`).toEqual({
+        expect(await transitionIssue("TRK-1", to, alice), `${from} → ${to}`).toEqual({
           status: 409,
           error: "Transition not allowed",
         });
@@ -76,58 +82,58 @@ describe("transitionIssue: workflow rules", () => {
   });
 
   it("returns 400 for an unknown status and 404 for an unknown issue", async () => {
-    expect(await transitionIssue("TRK-1", "blocked")).toMatchObject({ status: 400 });
-    expect(await transitionIssue("TRK-1", undefined)).toMatchObject({ status: 400 });
-    expect(await transitionIssue("TRK-999", "in_progress")).toMatchObject({ status: 404 });
-    expect(await transitionIssue("nope", "in_progress")).toMatchObject({ status: 404 });
+    expect(await transitionIssue("TRK-1", "blocked", alice)).toMatchObject({ status: 400 });
+    expect(await transitionIssue("TRK-1", undefined, alice)).toMatchObject({ status: 400 });
+    expect(await transitionIssue("TRK-999", "in_progress", alice)).toMatchObject({ status: 404 });
+    expect(await transitionIssue("nope", "in_progress", alice)).toMatchObject({ status: 404 });
   });
 });
 
 describe("transitionIssue: WIP limit", () => {
   it("allows the 3rd In Progress issue and refuses the 4th", async () => {
     await boardWith("TRK", ["TRK-1", "TRK-2"]);
-    expect(await transitionIssue("TRK-3", "in_progress")).toEqual({ status: 200 });
-    expect(await transitionIssue("TRK-4", "in_progress")).toEqual({ status: 409, error: "WIP limit reached" });
+    expect(await transitionIssue("TRK-3", "in_progress", alice)).toEqual({ status: 200 });
+    expect(await transitionIssue("TRK-4", "in_progress", alice)).toEqual({ status: 409, error: "WIP limit reached" });
     expect(await statusOf("TRK-4")).toBe("todo");
   });
 
   it("applies to reopening a Done issue too", async () => {
     await boardWith("TRK", ["TRK-1", "TRK-2", "TRK-3"]);
     await setStatus("TRK-4", "done");
-    expect(await transitionIssue("TRK-4", "in_progress")).toEqual({ status: 409, error: "WIP limit reached" });
+    expect(await transitionIssue("TRK-4", "in_progress", alice)).toEqual({ status: 409, error: "WIP limit reached" });
     expect(await statusOf("TRK-4")).toBe("done");
   });
 
   it("doesn't block moves to other columns when In Progress is full", async () => {
     await boardWith("TRK", ["TRK-1", "TRK-2", "TRK-3"]);
     await setStatus("TRK-4", "in_review");
-    expect(await transitionIssue("TRK-4", "done")).toEqual({ status: 200 });
-    expect(await transitionIssue("TRK-1", "in_review")).toEqual({ status: 200 });
+    expect(await transitionIssue("TRK-4", "done", alice)).toEqual({ status: 200 });
+    expect(await transitionIssue("TRK-1", "in_review", alice)).toEqual({ status: 200 });
   });
 
   it("frees a slot when an issue leaves In Progress", async () => {
     await boardWith("TRK", ["TRK-1", "TRK-2", "TRK-3"]);
-    expect(await transitionIssue("TRK-1", "todo")).toEqual({ status: 200 });
-    expect(await transitionIssue("TRK-4", "in_progress")).toEqual({ status: 200 });
+    expect(await transitionIssue("TRK-1", "todo", alice)).toEqual({ status: 200 });
+    expect(await transitionIssue("TRK-4", "in_progress", alice)).toEqual({ status: 200 });
   });
 
   it("counts per project", async () => {
     await boardWith("TRK", ["TRK-1", "TRK-2", "TRK-3"]);
     await boardWith("OPS", []);
-    expect(await transitionIssue("OPS-1", "in_progress")).toEqual({ status: 200 });
+    expect(await transitionIssue("OPS-1", "in_progress", alice)).toEqual({ status: 200 });
   });
 
   it("uses the project's own wip_limit", async () => {
     await setWipLimit("TRK", 1);
     await boardWith("TRK", ["TRK-1"]);
-    expect(await transitionIssue("TRK-2", "in_progress")).toEqual({ status: 409, error: "WIP limit reached" });
+    expect(await transitionIssue("TRK-2", "in_progress", alice)).toEqual({ status: 409, error: "WIP limit reached" });
   });
 
   // PGlite runs one transaction at a time, so this checks the outcome but can't catch a missing
   // FOR UPDATE lock (removing it still passes). Only a real Postgres (DATABASE_URL) would.
   it("lets only one of two simultaneous moves take the last slot", async () => {
     await boardWith("TRK", ["TRK-1", "TRK-2"]);
-    const results = await Promise.all([transitionIssue("TRK-3", "in_progress"), transitionIssue("TRK-4", "in_progress")]);
+    const results = await Promise.all([transitionIssue("TRK-3", "in_progress", alice), transitionIssue("TRK-4", "in_progress", alice)]);
     expect(results.map((r) => r.status).sort()).toEqual([200, 409]);
     const [{ n }] = await query<{ n: number }>(
       "SELECT count(*)::int AS n FROM issues WHERE project_id = (SELECT id FROM projects WHERE key = 'TRK') AND status = 'in_progress'",
