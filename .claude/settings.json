@@ -19,5 +19,8 @@
       "Bash(git clean*)",
       "PowerShell(git clean*)"
     ]
+  },
+  "enabledPlugins": {
+    "trackly-kit@trackly-kit": true
   }
 }
