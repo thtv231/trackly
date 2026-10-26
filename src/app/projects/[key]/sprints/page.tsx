@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format";
 import { ProjectHeader } from "../project-header";
 import { Backlog, type BacklogIssue } from "./backlog";
 import { NewSprintForm } from "./new-sprint-form";
+import { StartSprintButton } from "./start-sprint-button";
 
 type Props = { params: Promise<{ key: string }> };
 
@@ -93,7 +94,10 @@ export default async function SprintsPage({ params }: Props) {
                   <h2 className="font-display text-lg font-semibold text-brand-strong">
                     {s.name}
                   </h2>
-                  <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">
+                  <span
+                    data-testid="sprint-state"
+                    className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand"
+                  >
                     {STATE_LABEL[s.state]}
                   </span>
                 </div>
@@ -107,6 +111,7 @@ export default async function SprintsPage({ params }: Props) {
                   {points} points · {issues.length}{" "}
                   {issues.length === 1 ? "issue" : "issues"}
                 </p>
+                {canEdit && s.state === "planned" && <StartSprintButton sprintId={s.id} />}
                 {issues.length > 0 && (
                   <ul className="mt-3 divide-y divide-line border-t border-line">
                     {issues.map((i) => (
