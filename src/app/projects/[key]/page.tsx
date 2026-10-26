@@ -35,11 +35,17 @@ export default async function ProjectIssues({ params }: Props) {
         <span className="rounded-md bg-indigo-50 px-2 py-0.5 font-mono text-sm font-semibold text-indigo-700">
           {project.key}
         </span>
+        <Link
+          href={`/projects/${project.key}/board`}
+          className="ml-auto text-sm font-medium text-indigo-600 hover:underline"
+        >
+          Board
+        </Link>
         {user.role !== "viewer" && (
           <Link
             href={`/projects/${project.key}/new`}
             data-testid="new-issue"
-            className="ml-auto rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
           >
             New issue
           </Link>
