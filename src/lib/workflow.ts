@@ -4,8 +4,10 @@ import { now } from "./clock";
 import { transaction } from "./db";
 import { STATUSES, TRANSITIONS, type Status } from "./domain";
 import { parseIssueKey } from "./issues";
+import { recordWebhook } from "./webhooks";
 
-// Moving an issue between statuses (S11), with the WIP limit (S13), resolvedAt (S14) and the activity log (S21).
+// Moving an issue between statuses (S11), with the WIP limit (S13), resolvedAt (S14), the activity log (S21)
+// and the issue.status_changed webhook (S33).
 
 export type TransitionResult = { status: 200 } | { status: 400 | 404 | 409; error: string };
 
@@ -45,6 +47,7 @@ export async function transitionIssue(key: string, to: unknown, actor: User): Pr
       issue.id,
     ]);
     await logActivity(q, issue.id, actor.id, "status", at, issue.status, to as Status);
+    await recordWebhook(q, issue.project_id, "issue.status_changed", { key, from: issue.status, to }, at);
     return { status: 200 };
   });
 }
