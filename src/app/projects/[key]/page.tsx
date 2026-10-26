@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProjectIssues({ params }: Props) {
-  await requireUser();
+  const user = await requireUser();
   const { key } = await params;
   const [project] = await query<{ id: number; key: string; name: string }>(
     "SELECT id, key, name FROM projects WHERE key = $1",
@@ -35,6 +35,15 @@ export default async function ProjectIssues({ params }: Props) {
         <span className="rounded-md bg-indigo-50 px-2 py-0.5 font-mono text-sm font-semibold text-indigo-700">
           {project.key}
         </span>
+        {user.role !== "viewer" && (
+          <Link
+            href={`/projects/${project.key}/new`}
+            data-testid="new-issue"
+            className="ml-auto rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            New issue
+          </Link>
+        )}
       </div>
       {issues.length === 0 ? (
         <p className="text-zinc-600">No issues yet.</p>

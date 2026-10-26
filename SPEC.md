@@ -19,7 +19,7 @@ Where this spec and the tests disagree, the tests win.
 | Title | Trim, then 1–120 characters (measured after trimming). Store the trimmed value. |
 | Description | Optional, trimmed, max 10,000 characters. Empty means `''`. |
 | Points | Accepted by the API (`0,1,2,3,5,8,13` or `null`/missing). **Not** shown on the form. |
-| Viewers | The project page hides the "New issue" button. `/projects/[key]/new` shows a permission message (`403`) instead of the form. The API returns `403`. |
+| Viewers | The project page hides the "New issue" button. `/projects/[key]/new` shows a permission message instead of the form (HTTP 200: a real 403 page would need Next's experimental `authInterrupts`). The API returns `403`. |
 | Unknown project | `/projects/NOPE/new` → not-found page. `POST /api/issues` with `projectKey: "NOPE"` → `404 { error: "Project not found" }`. |
 | Errors | One message in `form-error`: the first problem the server finds. The form keeps what the user typed. The submit button is disabled while the request runs. |
 | Entry point | A "New issue" link on `/projects/[key]` (admins and members only). |
