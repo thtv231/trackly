@@ -1,0 +1,9 @@
+{
+  "name": "trackly-kit",
+  "version": "0.1.0",
+  "description": "Claude Code toolkit for Trackly: story and design skills, reviewer and test-writer agents, secret-guard / eslint-fix / unit-tests-on-stop hooks, and the Playwright MCP server.",
+  "author": {
+    "name": "AI Da Vang"
+  },
+  "keywords": ["trackly", "nextjs", "playwright", "hooks"]
+}

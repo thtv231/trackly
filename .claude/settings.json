@@ -19,41 +19,5 @@
       "Bash(git clean*)",
       "PowerShell(git clean*)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/secret-guard.mjs\" || exit 2"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/eslint-fix.mjs\"",
-            "timeout": 90
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/unit-tests-on-stop.mjs\"",
-            "timeout": 300
-          }
-        ]
-      }
-    ]
   }
 }

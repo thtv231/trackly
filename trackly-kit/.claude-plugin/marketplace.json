@@ -1,0 +1,17 @@
+{
+  "name": "trackly-kit",
+  "owner": {
+    "name": "AI Da Vang"
+  },
+  "metadata": {
+    "description": "Claude Code toolkit for the Trackly course project."
+  },
+  "plugins": [
+    {
+      "name": "trackly-kit",
+      "source": "./plugins/trackly-kit",
+      "description": "Trackly skills, agents, hooks and the Playwright MCP server.",
+      "version": "0.1.0"
+    }
+  ]
+}
