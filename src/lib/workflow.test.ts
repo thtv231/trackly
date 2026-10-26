@@ -53,6 +53,21 @@ describe("transitionIssue: workflow rules", () => {
     }
   });
 
+  it("refuses every other move with 409 and leaves the status alone", async () => {
+    for (const from of STATUSES) {
+      for (const to of STATUSES) {
+        if (isAllowed(from, to)) continue;
+        await boardWith("TRK", []);
+        await setStatus("TRK-1", from);
+        expect(await transitionIssue("TRK-1", to), `${from} → ${to}`).toEqual({
+          status: 409,
+          error: "Transition not allowed",
+        });
+        expect(await statusOf("TRK-1")).toBe(from);
+      }
+    }
+  });
+
   it("returns 400 for an unknown status and 404 for an unknown issue", async () => {
     expect(await transitionIssue("TRK-1", "blocked")).toMatchObject({ status: 400 });
     expect(await transitionIssue("TRK-1", undefined)).toMatchObject({ status: 400 });
