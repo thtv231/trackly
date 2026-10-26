@@ -17,7 +17,12 @@ export function Board({ cards }: Props) {
             data-status={status}
             className="flex flex-col rounded-xl border border-zinc-200 bg-zinc-50 p-3"
           >
-            <h2 className="mb-3 text-sm font-semibold text-zinc-700">{STATUS_LABEL[status]}</h2>
+            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-zinc-700">
+              {STATUS_LABEL[status]}
+              <span data-testid="column-count" className="rounded-full bg-zinc-200 px-2 text-xs text-zinc-700">
+                {column.length}
+              </span>
+            </h2>
             <ul className="space-y-2">
               {column.map((c) => (
                 <li
