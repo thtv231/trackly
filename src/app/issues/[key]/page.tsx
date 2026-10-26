@@ -13,6 +13,8 @@ import {
 } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
 import { Markdown } from "@/lib/markdown";
+import type { Comment } from "@/app/api/issues/[key]/comments/route";
+import { IssueComments } from "./issue-comments";
 import { IssueDetails, type Field } from "./issue-details";
 import { IssueLabels } from "./issue-labels";
 
@@ -62,6 +64,17 @@ export default async function IssuePage({ params }: Props) {
   );
   if (!issue) notFound();
   const issueKey = `${issue.project_key}-${issue.number}`;
+  const comments = await query<Comment>(
+    `SELECT c.id, u.name AS author, c.body,
+            to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created_at
+       FROM comments c
+       JOIN users u ON u.id = c.author_id
+       JOIN issues i ON i.id = c.issue_id
+       JOIN projects p ON p.id = i.project_id
+      WHERE p.key = $1 AND i.number = $2
+      ORDER BY c.created_at, c.id`,
+    [issue.project_key, issue.number],
+  );
   const canEdit = user.role !== "viewer";
   const assignees = canEdit
     ? await query<{ email: string; name: string }>(
@@ -113,16 +126,19 @@ export default async function IssuePage({ params }: Props) {
         assignees={assignees}
         sidebar={<IssueLabels issueKey={issueKey} labels={issue.labels} canEdit={canEdit} />}
       >
-        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-medium text-zinc-500">Description</h2>
-          <div data-testid="issue-description" className="text-zinc-800">
-            {issue.description.trim() ? (
-              <Markdown text={issue.description} />
-            ) : (
-              <p className="text-zinc-500">No description.</p>
-            )}
-          </div>
-        </section>
+        <div className="space-y-6">
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="mb-3 text-sm font-medium text-zinc-500">Description</h2>
+            <div data-testid="issue-description" className="text-zinc-800">
+              {issue.description.trim() ? (
+                <Markdown text={issue.description} />
+              ) : (
+                <p className="text-zinc-500">No description.</p>
+              )}
+            </div>
+          </section>
+          <IssueComments issueKey={issueKey} comments={comments} canComment={canEdit} />
+        </div>
       </IssueDetails>
     </>
   );
