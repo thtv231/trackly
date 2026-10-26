@@ -1,6 +1,6 @@
 import { apiUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { parseIssueKey } from "@/lib/issues";
+import { parseIssueKey, updateIssue } from "@/lib/issues";
 
 type Ctx = { params: Promise<{ key: string }> };
 type Row = {
@@ -49,4 +49,18 @@ export async function GET(_req: Request, { params }: Ctx) {
     resolvedAt: issue.resolved_at ? new Date(issue.resolved_at).toISOString() : null,
     dueDate: issue.due_date,
   });
+}
+
+// PATCH /api/issues/[key] with any of title, type, priority, assignee, points, description, dueDate → 200.
+export async function PATCH(req: Request, { params }: Ctx) {
+  const user = await apiUser();
+  if (user instanceof Response) return user;
+  if (user.role === "viewer") return Response.json({ error: "Viewers can't edit issues" }, { status: 403 });
+  const { key } = await params;
+  const body = await req.json().catch(() => undefined);
+  if (body === undefined) return Response.json({ error: "Request body must be JSON" }, { status: 400 });
+
+  const result = await updateIssue(key, body);
+  if (result.status !== 200) return Response.json({ error: result.error }, { status: result.status });
+  return Response.json({ key });
 }

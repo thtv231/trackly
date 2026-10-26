@@ -13,6 +13,7 @@ import {
 } from "@/lib/domain";
 import { formatDate } from "@/lib/format";
 import { Markdown } from "@/lib/markdown";
+import { IssueDetails, type Field } from "./issue-details";
 
 type Props = { params: Promise<{ key: string }> };
 type IssueDetail = {
@@ -25,6 +26,7 @@ type IssueDetail = {
   status: Status;
   priority: Priority;
   assignee: string | null;
+  assignee_email: string | null;
   reporter: string;
   points: number | null;
   due_date: string | null;
@@ -37,13 +39,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function IssuePage({ params }: Props) {
-  await requireUser();
+  const user = await requireUser();
   const { key } = await params;
   const match = /^([A-Z][A-Z0-9]{1,9})-(\d+)$/.exec(key);
   if (!match) notFound();
   const [issue] = await query<IssueDetail>(
     `SELECT p.key AS project_key, p.name AS project_name, i.number, i.title, i.description, i.type,
-            i.status, i.priority, a.name AS assignee, r.name AS reporter, i.points,
+            i.status, i.priority, a.name AS assignee, a.email AS assignee_email, r.name AS reporter, i.points,
             to_char(i.due_date, 'YYYY-MM-DD') AS due_date, i.created_at
        FROM issues i
        JOIN projects p ON p.id = i.project_id
@@ -54,14 +56,25 @@ export default async function IssuePage({ params }: Props) {
   );
   if (!issue) notFound();
   const issueKey = `${issue.project_key}-${issue.number}`;
+  const canEdit = user.role !== "viewer";
+  const assignees = canEdit
+    ? await query<{ email: string; name: string }>(
+        "SELECT email, name FROM users WHERE role IN ('admin', 'member') ORDER BY name",
+      )
+    : [];
 
-  const fields: { label: string; testId: string; value: string }[] = [
+  const fields: Field[] = [
     { label: "Type", testId: "issue-type", value: TYPE_LABEL[issue.type] },
     { label: "Status", testId: "issue-status", value: STATUS_LABEL[issue.status] },
-    { label: "Priority", testId: "issue-priority", value: PRIORITY_LABEL[issue.priority] },
-    { label: "Assignee", testId: "issue-assignee", value: issue.assignee ?? "Unassigned" },
+    { label: "Priority", testId: "issue-priority", value: PRIORITY_LABEL[issue.priority], edit: "priority" },
+    { label: "Assignee", testId: "issue-assignee", value: issue.assignee ?? "Unassigned", edit: "assignee" },
     { label: "Reporter", testId: "issue-reporter", value: issue.reporter },
-    { label: "Points", testId: "issue-points", value: issue.points === null ? "None" : String(issue.points) },
+    {
+      label: "Points",
+      testId: "issue-points",
+      value: issue.points === null ? "None" : String(issue.points),
+      edit: "points",
+    },
     { label: "Due", testId: "issue-due", value: issue.due_date ? formatDate(issue.due_date) : "None" },
     { label: "Created", testId: "issue-created", value: formatDate(issue.created_at) },
   ];
@@ -77,10 +90,18 @@ export default async function IssuePage({ params }: Props) {
           {issueKey}
         </span>
       </nav>
-      <h1 data-testid="issue-title" className="mb-6 text-2xl font-bold">
-        {issue.title}
-      </h1>
-      <div className="grid gap-6 md:grid-cols-[1fr_16rem]">
+      <IssueDetails
+        issueKey={issueKey}
+        canEdit={canEdit}
+        fields={fields}
+        values={{
+          title: issue.title,
+          priority: issue.priority,
+          assignee: issue.assignee_email ?? "",
+          points: issue.points === null ? "" : String(issue.points),
+        }}
+        assignees={assignees}
+      >
         <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-sm font-medium text-zinc-500">Description</h2>
           <div data-testid="issue-description" className="text-zinc-800">
@@ -91,19 +112,7 @@ export default async function IssuePage({ params }: Props) {
             )}
           </div>
         </section>
-        <aside className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <dl className="space-y-3 text-sm">
-            {fields.map((f) => (
-              <div key={f.testId}>
-                <dt className="text-zinc-500">{f.label}</dt>
-                <dd data-testid={f.testId} className="font-medium text-zinc-900">
-                  {f.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </aside>
-      </div>
+      </IssueDetails>
     </>
   );
 }

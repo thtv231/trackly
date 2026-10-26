@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { User } from "./auth";
 import { query } from "./db";
-import { createIssue, parseIssueKey, validateNewIssue } from "./issues";
+import { createIssue, parseIssueKey, updateIssue, validateIssuePatch, validateNewIssue } from "./issues";
 
 const base = { projectKey: "TRK", title: "New issue", type: "task", priority: "medium" };
 const error = (body: unknown) => {
@@ -93,5 +93,49 @@ describe("parseIssueKey", () => {
     expect(parseIssueKey("TRK-12")).toEqual({ projectKey: "TRK", number: 12 });
     expect(parseIssueKey("trk-12")).toBeNull();
     expect(parseIssueKey("TRK-")).toBeNull();
+  });
+});
+
+describe("validateIssuePatch", () => {
+  const patchError = (body: unknown) => {
+    const r = validateIssuePatch(body);
+    return "error" in r ? r.error : null;
+  };
+
+  it("only checks the fields that are present and ignores status", () => {
+    expect(validateIssuePatch({})).toEqual({ value: {} });
+    expect(validateIssuePatch({ status: "done" })).toEqual({ value: {} });
+    expect(validateIssuePatch({ priority: "high" })).toEqual({ value: { priority: "high" } });
+  });
+
+  it("rejects bad values and accepts clearing nullable fields", () => {
+    expect(patchError({ title: "  " })).toContain("Title");
+    expect(patchError({ points: 4 })).toContain("Points");
+    expect(patchError({ priority: "urgent" })).toContain("Priority");
+    expect(patchError({ dueDate: "2026-02-30" })).toContain("Due date");
+    expect(patchError({ points: null, assignee: null, dueDate: null })).toBeNull();
+  });
+});
+
+describe("updateIssue", () => {
+  const row = async (n: number) =>
+    (
+      await query<{ title: string; priority: string; points: number | null; assignee: string | null }>(
+        `SELECT i.title, i.priority, i.points, u.email AS assignee
+           FROM issues i JOIN projects p ON p.id = i.project_id LEFT JOIN users u ON u.id = i.assignee_id
+          WHERE p.key = 'TRK' AND i.number = $1`,
+        [n],
+      )
+    )[0];
+
+  it("changes only the given fields", async () => {
+    const before = await row(4);
+    expect(await updateIssue("TRK-4", { points: 5, assignee: "bob@trackly.test" })).toEqual({ status: 200 });
+    expect(await row(4)).toEqual({ ...before, points: 5, assignee: "bob@trackly.test" });
+  });
+
+  it("returns 404 for a missing issue and 400 for a viewer as assignee", async () => {
+    expect((await updateIssue("TRK-999", { title: "x" })).status).toBe(404);
+    expect((await updateIssue("TRK-4", { assignee: "dave@trackly.test" })).status).toBe(400);
   });
 });

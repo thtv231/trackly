@@ -97,3 +97,104 @@ export function parseIssueKey(key: string): { projectKey: string; number: number
   const match = /^([A-Z][A-Z0-9]{1,9})-(\d+)$/.exec(key);
   return match ? { projectKey: match[1], number: Number(match[2]) } : null;
 }
+
+// Editing issues (S07). PATCH /api/issues/[key] may send any subset of these fields. `status` changes go
+// through /transition, so it is ignored here like any unknown field.
+
+export type IssuePatch = Partial<Omit<NewIssue, "projectKey"> & { dueDate: string | null }>;
+
+/** Checks that need no database, for the fields present in the body. The first problem wins. */
+export function validateIssuePatch(body: unknown): { value: IssuePatch } | { error: string } {
+  const b = (body && typeof body === "object" ? body : {}) as Record<string, unknown>;
+  const value: IssuePatch = {};
+  if ("title" in b) {
+    const title = typeof b.title === "string" ? b.title.trim() : "";
+    if (!title) return { error: "Title is required" };
+    if (title.length > TITLE_MAX) return { error: `Title must be ${TITLE_MAX} characters or fewer` };
+    value.title = title;
+  }
+  if ("type" in b) {
+    if (!TYPES.includes(b.type as IssueType)) return { error: `Type must be one of ${TYPES.join(", ")}` };
+    value.type = b.type as IssueType;
+  }
+  if ("priority" in b) {
+    if (!PRIORITIES.includes(b.priority as Priority)) {
+      return { error: `Priority must be one of ${PRIORITIES.join(", ")}` };
+    }
+    value.priority = b.priority as Priority;
+  }
+  if ("points" in b) {
+    const points = b.points ?? null;
+    if (points !== null && !POINTS.includes(points as (typeof POINTS)[number])) {
+      return { error: `Points must be one of ${POINTS.join(", ")}` };
+    }
+    value.points = points as number | null;
+  }
+  if ("description" in b) {
+    if (b.description != null && typeof b.description !== "string") return { error: "Description must be text" };
+    const description = typeof b.description === "string" ? b.description.trim() : "";
+    if (description.length > DESCRIPTION_MAX) return { error: "Description must be 10,000 characters or fewer" };
+    value.description = description;
+  }
+  if ("assignee" in b) {
+    if (b.assignee != null && typeof b.assignee !== "string") return { error: "Assignee must be an email" };
+    value.assignee = typeof b.assignee === "string" && b.assignee.trim() ? b.assignee.trim() : null;
+  }
+  if ("dueDate" in b) {
+    const due = b.dueDate ?? null;
+    if (due !== null && (typeof due !== "string" || !isIsoDate(due))) return { error: "Due date must be YYYY-MM-DD" };
+    value.dueDate = due as string | null;
+  }
+  return { value };
+}
+
+/** A real calendar date in YYYY-MM-DD form (rejects 2026-02-30). */
+function isIsoDate(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const d = new Date(`${s}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
+}
+
+export type UpdateResult = { status: 200 } | { status: 400 | 404; error: string };
+
+/** Validate and apply a partial update. Only the fields present in the body change. */
+export async function updateIssue(key: string, body: unknown): Promise<UpdateResult> {
+  const parsed = parseIssueKey(key);
+  if (!parsed) return { status: 404, error: "Issue not found" };
+  const checked = validateIssuePatch(body);
+  if ("error" in checked) return { status: 400, error: checked.error };
+  const input = checked.value;
+
+  const [issue] = await query<{ id: number }>(
+    "SELECT i.id FROM issues i JOIN projects p ON p.id = i.project_id WHERE p.key = $1 AND i.number = $2",
+    [parsed.projectKey, parsed.number],
+  );
+  if (!issue) return { status: 404, error: "Issue not found" };
+
+  const columns: Record<string, unknown> = {};
+  if (input.title !== undefined) columns.title = input.title;
+  if (input.type !== undefined) columns.type = input.type;
+  if (input.priority !== undefined) columns.priority = input.priority;
+  if (input.points !== undefined) columns.points = input.points;
+  if (input.description !== undefined) columns.description = input.description;
+  if (input.dueDate !== undefined) columns.due_date = input.dueDate;
+  if (input.assignee !== undefined) {
+    columns.assignee_id = null;
+    if (input.assignee) {
+      const [u] = await query<{ id: number }>(
+        "SELECT id FROM users WHERE email = lower($1) AND role IN ('admin', 'member')",
+        [input.assignee],
+      );
+      if (!u) return { status: 400, error: "Assignee must be an admin or member" };
+      columns.assignee_id = u.id;
+    }
+  }
+  if (Object.keys(columns).length === 0) return { status: 200 };
+
+  // Column names come from the fixed list above, never from the request.
+  columns.updated_at = await now();
+  const names = Object.keys(columns);
+  const sets = names.map((name, i) => `${name} = $${i + 2}`).join(", ");
+  await query(`UPDATE issues SET ${sets} WHERE id = $1`, [issue.id, ...names.map((n) => columns[n])]);
+  return { status: 200 };
+}
