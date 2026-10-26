@@ -2,16 +2,17 @@ import Link from "next/link";
 
 type Props = {
   project: { key: string; name: string };
-  view: "list" | "board";
+  view: "list" | "board" | "sprints";
   children?: React.ReactNode;
 };
 
 const VIEWS = [
   { id: "list", label: "List", path: "" },
   { id: "board", label: "Board", path: "/board" },
+  { id: "sprints", label: "Sprints", path: "/sprints" },
 ] as const;
 
-/** Title row shared by the issue list and the board, with a List / Board switch. */
+/** Title row shared by the issue list, the board and sprints, with a view switch. */
 export function ProjectHeader({ project, view, children }: Props) {
   return (
     <div className="mb-8 flex flex-wrap items-end gap-4">
