@@ -1,36 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Comment } from "@/app/api/issues/[key]/comments/route";
 import { formatDate } from "@/lib/format";
 import { Markdown } from "@/lib/markdown";
+import { useFormError } from "./issue-details";
 
 type Props = { issueKey: string; comments: Comment[]; canComment: boolean };
 
 // Comment thread on the issue page (S19), oldest first. New comments are appended once the server accepts them.
-export function IssueComments({ issueKey, comments: initial, canComment }: Props) {
-  const [comments, setComments] = useState(initial);
+// The list is the server's comments plus the ones added here since, so a router.refresh() still shows new ones.
+export function IssueComments({ issueKey, comments: fromServer, canComment }: Props) {
+  const [added, setAdded] = useState<Comment[]>([]);
   const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const { error, show: showError, clear: clearError } = useFormError("comment");
   const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false); // `saving` only disables the button after a re-render, too late for a double click
+  const serverIds = new Set(fromServer.map((c) => c.id));
+  const comments = [...fromServer, ...added.filter((c) => !serverIds.has(c.id))];
 
   async function submit() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setSaving(true);
+    const sent = draft;
     try {
       const r = await fetch(`/api/issues/${issueKey}/comments`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body: draft }),
+        body: JSON.stringify({ body: sent }),
       });
       const body = await r.json().catch(() => null);
       if (!r.ok) {
-        setError(body?.error ?? "Could not add the comment");
+        showError(body?.error ?? "Could not add the comment");
         return;
       }
-      setError(null);
-      setDraft("");
-      setComments((prev) => [...prev, body.comment as Comment]);
+      clearError();
+      // Keep anything typed while the request was in flight.
+      setDraft((d) => (d === sent ? "" : d));
+      setAdded((prev) => [...prev, body.comment as Comment]);
+    } catch {
+      showError("Could not add the comment. Check your connection and try again.");
     } finally {
+      inFlight.current = false;
       setSaving(false);
     }
   }
