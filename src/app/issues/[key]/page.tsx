@@ -31,6 +31,7 @@ type IssueDetail = {
   points: number | null;
   due_date: string | null;
   created_at: Date;
+  resolved_at: Date | null;
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -46,7 +47,7 @@ export default async function IssuePage({ params }: Props) {
   const [issue] = await query<IssueDetail>(
     `SELECT p.key AS project_key, p.name AS project_name, i.number, i.title, i.description, i.type,
             i.status, i.priority, a.name AS assignee, a.email AS assignee_email, r.name AS reporter, i.points,
-            to_char(i.due_date, 'YYYY-MM-DD') AS due_date, i.created_at
+            to_char(i.due_date, 'YYYY-MM-DD') AS due_date, i.created_at, i.resolved_at
        FROM issues i
        JOIN projects p ON p.id = i.project_id
        JOIN users r ON r.id = i.reporter_id
@@ -77,6 +78,9 @@ export default async function IssuePage({ params }: Props) {
     },
     { label: "Due", testId: "issue-due", value: issue.due_date ? formatDate(issue.due_date) : "None" },
     { label: "Created", testId: "issue-created", value: formatDate(issue.created_at) },
+    ...(issue.resolved_at
+      ? [{ label: "Resolved", testId: "issue-resolved", value: formatDate(issue.resolved_at) }]
+      : []),
   ];
 
   return (

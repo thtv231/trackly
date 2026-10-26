@@ -3,7 +3,7 @@ import { transaction } from "./db";
 import { STATUSES, TRANSITIONS, type Status } from "./domain";
 import { parseIssueKey } from "./issues";
 
-// Moving an issue between statuses (S11), with the WIP limit (S13). resolvedAt (S14) and activity (S21) come later.
+// Moving an issue between statuses (S11), with the WIP limit (S13) and resolvedAt (S14). Activity (S21) comes later.
 
 export type TransitionResult = { status: 200 } | { status: 400 | 404 | 409; error: string };
 
@@ -35,7 +35,13 @@ export async function transitionIssue(key: string, to: unknown): Promise<Transit
       );
       if (n >= issue.wip_limit) return { status: 409, error: "WIP limit reached" };
     }
-    await q("UPDATE issues SET status = $1, updated_at = $2 WHERE id = $3", [to, at, issue.id]);
+    // Done stamps the resolution time; any other status (a reopen) clears it.
+    await q("UPDATE issues SET status = $1, updated_at = $2, resolved_at = $3 WHERE id = $4", [
+      to,
+      at,
+      to === "done" ? at : null,
+      issue.id,
+    ]);
     return { status: 200 };
   });
 }
