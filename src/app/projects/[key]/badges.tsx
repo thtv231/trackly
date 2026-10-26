@@ -1,4 +1,5 @@
 import { STATUS_LABEL, type Priority, type Status } from "@/lib/domain";
+import { formatDate } from "@/lib/format";
 
 export const STATUS_TONE: Record<Status, { dot: string; badge: string; bar: string }> = {
   todo: { dot: "bg-stone-400", badge: "bg-stone-100 text-stone-700", bar: "border-t-stone-400" },
@@ -29,6 +30,18 @@ export function PriorityMark({ priority }: { priority: Priority }) {
       {[1, 2, 3, 4].map((n) => (
         <span key={n} className={`w-1 rounded-sm ${n <= filled ? color : "bg-line"}`} style={{ height: 3 + n * 2 }} />
       ))}
+    </span>
+  );
+}
+
+export function OverdueBadge({ dueDate }: { dueDate: string }) {
+  return (
+    <span
+      data-testid="overdue-badge"
+      title={`Due ${formatDate(dueDate)}`}
+      className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 ring-1 ring-red-200"
+    >
+      Overdue
     </span>
   );
 }

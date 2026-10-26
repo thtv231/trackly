@@ -9,11 +9,12 @@ import {
   STATUS_LABEL,
   TYPES,
   TYPE_LABEL,
+  isOverdue,
   type IssueType,
   type Priority,
   type Status,
 } from "@/lib/domain";
-import { PriorityMark, StatusBadge } from "./badges";
+import { OverdueBadge, PriorityMark, StatusBadge } from "./badges";
 
 export type IssueRow = {
   key: string;
@@ -22,6 +23,7 @@ export type IssueRow = {
   priority: Priority;
   type: IssueType;
   assignee: string | null;
+  dueDate: string | null;
 };
 
 /** "" means no filter on that field. */
@@ -31,7 +33,8 @@ export type Filters = {
   type: IssueType | "";
 };
 
-type Props = { issues: IssueRow[]; initialFilters: Filters };
+/** `today` is the app clock's UTC date ('YYYY-MM-DD'), for the overdue badge. */
+type Props = { issues: IssueRow[]; initialFilters: Filters; today: string };
 
 const SELECTS = [
   {
@@ -54,7 +57,7 @@ const SELECTS = [
   },
 ] as const;
 
-export function IssueTable({ issues, initialFilters }: Props) {
+export function IssueTable({ issues, initialFilters, today }: Props) {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Filters>(initialFilters);
 
@@ -147,6 +150,11 @@ export function IssueTable({ issues, initialFilters }: Props) {
                   >
                     {i.key}
                   </Link>
+                  {isOverdue(i.status, i.dueDate, today) && i.dueDate && (
+                    <div className="mt-1 font-sans">
+                      <OverdueBadge dueDate={i.dueDate} />
+                    </div>
+                  )}
                 </td>
                 <td
                   data-testid="issue-title"

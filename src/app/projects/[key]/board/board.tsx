@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { PRIORITY_LABEL, STATUSES, STATUS_LABEL, TRANSITIONS, type Priority, type Status } from "@/lib/domain";
-import { PriorityMark, STATUS_TONE } from "../badges";
+import { PRIORITY_LABEL, STATUSES, STATUS_LABEL, TRANSITIONS, isOverdue, type Priority, type Status } from "@/lib/domain";
+import { OverdueBadge, PriorityMark, STATUS_TONE } from "../badges";
 
-export type BoardCard = { key: string; number: number; title: string; status: Status; priority: Priority; assignee: string | null };
+export type BoardCard = { key: string; number: number; title: string; status: Status; priority: Priority; assignee: string | null; dueDate: string | null };
 
-type Props = { cards: BoardCard[]; canMove: boolean };
+/** `today` is the app clock's UTC date ('YYYY-MM-DD'), for the overdue badge. */
+type Props = { cards: BoardCard[]; canMove: boolean; today: string };
 
-export function Board({ cards: initial, canMove }: Props) {
+export function Board({ cards: initial, canMove, today }: Props) {
   const [cards, setCards] = useState(initial);
   const [moving, setMoving] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -79,6 +80,11 @@ export function Board({ cards: initial, canMove }: Props) {
                     >
                       {c.key}
                     </Link>
+                    {isOverdue(c.status, c.dueDate, today) && c.dueDate && (
+                      <span className="ml-2 align-middle">
+                        <OverdueBadge dueDate={c.dueDate} />
+                      </span>
+                    )}
                     <p className="mt-1 leading-snug font-medium text-ink">{c.title}</p>
                     <div className="mt-3 flex items-center justify-between gap-2 text-xs text-ink-muted">
                       <span className="inline-flex items-center gap-1.5">

@@ -35,3 +35,8 @@ export const TRANSITIONS: Record<Status, readonly Status[]> = {
   in_review: ["in_progress", "done"],
   done: ["in_progress"],
 };
+
+/** Not Done and due before `today` (both 'YYYY-MM-DD', today from the app clock). Due today is not overdue. */
+export function isOverdue(status: Status, dueDate: string | null, today: string): boolean {
+  return status !== "done" && dueDate !== null && dueDate < today;
+}

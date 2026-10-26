@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { now, utcDate } from "@/lib/clock";
 import { query } from "@/lib/db";
 import {
   PRIORITIES,
@@ -25,6 +26,7 @@ type DbIssue = {
   priority: Priority;
   type: IssueType;
   assignee: string | null;
+  due_date: string | null;
 };
 
 /** Keeps a URL filter value only if it is a known code. */
@@ -59,7 +61,8 @@ export default async function ProjectIssues({ params, searchParams }: Props) {
   if (!project) notFound();
   const label = typeof sp.label === "string" ? sp.label.trim().toLowerCase() : "";
   const issues = await query<DbIssue>(
-    `SELECT i.number, i.title, i.status, i.priority, i.type, u.name AS assignee
+    `SELECT i.number, i.title, i.status, i.priority, i.type, u.name AS assignee,
+            to_char(i.due_date, 'YYYY-MM-DD') AS due_date
        FROM issues i LEFT JOIN users u ON u.id = i.assignee_id
       WHERE i.project_id = $1
         AND ($2 = '' OR EXISTS (SELECT 1 FROM issue_labels il JOIN labels l ON l.id = il.label_id
@@ -67,6 +70,7 @@ export default async function ProjectIssues({ params, searchParams }: Props) {
       ORDER BY i.number`,
     [project.id, label],
   );
+  const today = utcDate(await now());
   return (
     <>
       <ProjectHeader project={project} view="list">
@@ -86,11 +90,13 @@ export default async function ProjectIssues({ params, searchParams }: Props) {
         </p>
       ) : (
         <IssueTable
-          issues={issues.map(({ number, ...i }) => ({
+          issues={issues.map(({ number, due_date, ...i }) => ({
             ...i,
+            dueDate: due_date,
             key: `${project.key}-${number}`,
           }))}
           initialFilters={filters}
+          today={today}
         />
       )}
     </>
