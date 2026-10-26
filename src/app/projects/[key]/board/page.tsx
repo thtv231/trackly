@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import type { Priority, Status } from "@/lib/domain";
+import { PRIORITIES, type Priority, type Status } from "@/lib/domain";
 import { ProjectHeader } from "../project-header";
 import { Board, type BoardCard } from "./board";
 
@@ -25,8 +25,8 @@ export default async function ProjectBoard({ params }: Props) {
     `SELECT i.number, i.title, i.status, i.priority, u.name AS assignee
        FROM issues i LEFT JOIN users u ON u.id = i.assignee_id
       WHERE i.project_id = $1
-      ORDER BY i.number`,
-    [project.id],
+      ORDER BY array_position($2::text[], i.priority), i.number`,
+    [project.id, PRIORITIES],
   );
   const cards: BoardCard[] = rows.map((r) => ({ ...r, key: `${project.key}-${r.number}` }));
   return (
