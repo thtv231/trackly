@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-Trackly is a small Jira-like issue tracker built story by story during a Claude Code course. **`STORIES.md` is the spec** (conventions, public API, 40 user stories in groups A–F), and the Playwright acceptance tests in `tests/acceptance/` are the final judge.
+Trackly is a small Jira-like issue tracker built story by story during a Claude Code course. **`STORIES.md` is the spec** (conventions, public API, 40 user stories in groups A–F), and the Playwright acceptance tests in `tests/acceptance/` are the final judge. To build a story, use the `/trackly-story S16` skill.
 
 ## Project rules
 1. **Tests:** run only the acceptance tests for the story you're working on, e.g. `npx playwright test -g "S03 "` (the trailing space keeps S03 from matching S30–S39). `npm run scoreboard` runs all 40 tests and takes about 4 minutes, so run it only when asked.
@@ -37,7 +37,6 @@ npm run db:reset            # reset dev DB (.data/pglite) to seed data; stop `np
 
 ## Conventions the tests depend on
 - `data-testid` attributes named in `STORIES.md` are the UI/test contract: restyle freely, keep the IDs.
-- **New page or API route → add it to `tests/global-setup.ts`** (`PAGES`/`GETS`/`POSTS`) so it is pre-compiled; a first-hit compile (2–3 s) can exceed the test timeout.
 - Dates are stored in UTC and shown like `Nov 2, 2026`.
 
 ## Course workflow
