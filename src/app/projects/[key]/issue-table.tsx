@@ -80,6 +80,9 @@ export function IssueTable({ issues, initialFilters }: Props) {
         i.title.toLowerCase().includes(needle)),
   );
 
+  // Narrow screens drop the assignee column and the priority word so the
+  // table fits 375 px without scrolling sideways.
+  const cell = "px-3 py-3 sm:px-4";
   const field =
     "rounded-lg border border-line bg-panel px-3 py-2 text-sm shadow-sm transition-colors duration-200 hover:border-brand/40 focus:border-brand focus:ring-2 focus:ring-brand/15 focus:outline-none";
 
@@ -120,11 +123,13 @@ export function IssueTable({ issues, initialFilters }: Props) {
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line bg-surface/60 text-xs tracking-wider text-ink-muted uppercase">
             <tr>
-              <th className="px-4 py-3 font-semibold">Key</th>
-              <th className="px-4 py-3 font-semibold">Title</th>
-              <th className="px-4 py-3 font-semibold">Status</th>
-              <th className="px-4 py-3 font-semibold">Priority</th>
-              <th className="px-4 py-3 font-semibold">Assignee</th>
+              <th className={`${cell} font-semibold`}>Key</th>
+              <th className={`${cell} font-semibold`}>Title</th>
+              <th className={`${cell} font-semibold`}>Status</th>
+              <th className={`${cell} font-semibold`}>
+                <span className="sr-only sm:not-sr-only">Priority</span>
+              </th>
+              <th className={`hidden sm:table-cell ${cell} font-semibold`}>Assignee</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-line/70">
@@ -134,7 +139,7 @@ export function IssueTable({ issues, initialFilters }: Props) {
                 data-testid="issue-row"
                 className="group transition-colors duration-150 hover:bg-brand-soft/50"
               >
-                <td className="border-l-2 border-transparent px-4 py-3 font-mono text-xs whitespace-nowrap transition-colors duration-150 group-hover:border-accent">
+                <td className={`border-l-2 border-transparent ${cell} font-mono text-xs whitespace-nowrap transition-colors duration-150 group-hover:border-accent`}>
                   <Link
                     href={`/issues/${i.key}`}
                     data-testid="issue-key"
@@ -145,28 +150,30 @@ export function IssueTable({ issues, initialFilters }: Props) {
                 </td>
                 <td
                   data-testid="issue-title"
-                  className="px-4 py-3 font-medium text-ink"
+                  className={`${cell} font-medium break-words text-ink`}
                 >
                   {i.title}
                 </td>
                 <td
                   data-testid="issue-status"
-                  className="px-4 py-3 whitespace-nowrap"
+                  className={`${cell} whitespace-nowrap`}
                 >
                   <StatusBadge status={i.status} />
                 </td>
                 <td
                   data-testid="issue-priority"
-                  className="px-4 py-3 whitespace-nowrap text-ink-muted"
+                  className={`${cell} whitespace-nowrap text-ink-muted`}
                 >
                   <span className="inline-flex items-center gap-2">
                     <PriorityMark priority={i.priority} />
-                    {PRIORITY_LABEL[i.priority]}
+                    <span className="sr-only sm:not-sr-only">
+                      {PRIORITY_LABEL[i.priority]}
+                    </span>
                   </span>
                 </td>
                 <td
                   data-testid="issue-assignee"
-                  className={`px-4 py-3 whitespace-nowrap ${i.assignee ? "text-ink" : "text-ink-muted italic"}`}
+                  className={`hidden sm:table-cell ${cell} whitespace-nowrap ${i.assignee ? "text-ink" : "text-ink-muted italic"}`}
                 >
                   {i.assignee ?? "Unassigned"}
                 </td>
