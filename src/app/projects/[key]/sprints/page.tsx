@@ -107,6 +107,12 @@ export default async function SprintsPage({ params }: Props) {
                   >
                     {STATE_LABEL[s.state]}
                   </span>
+                  <a
+                    href={`/projects/${project.key}/sprints/${s.id}/burndown`}
+                    className="ml-auto text-sm text-brand hover:underline"
+                  >
+                    Burndown
+                  </a>
                 </div>
                 <p className="mt-1 text-sm text-ink-muted">
                   {formatDate(s.start)} – {formatDate(s.end)}
