@@ -3,10 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { PRIORITY_LABEL, STATUS_LABEL, type Priority, type Status } from "@/lib/domain";
+import type { Priority, Status } from "@/lib/domain";
+import { IssueTable } from "./issue-table";
 
 type Props = { params: Promise<{ key: string }> };
-type IssueRow = { number: number; title: string; status: Status; priority: Priority; assignee: string | null };
+type DbIssue = { number: number; title: string; status: Status; priority: Priority; assignee: string | null };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { key } = await params;
@@ -21,7 +22,7 @@ export default async function ProjectIssues({ params }: Props) {
     [key],
   );
   if (!project) notFound();
-  const issues = await query<IssueRow>(
+  const issues = await query<DbIssue>(
     `SELECT i.number, i.title, i.status, i.priority, u.name AS assignee
        FROM issues i LEFT JOIN users u ON u.id = i.assignee_id
       WHERE i.project_id = $1
@@ -54,49 +55,7 @@ export default async function ProjectIssues({ params }: Props) {
       {issues.length === 0 ? (
         <p className="text-zinc-600">No issues yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 text-zinc-600">
-              <tr>
-                <th className="px-4 py-2 font-medium">Key</th>
-                <th className="px-4 py-2 font-medium">Title</th>
-                <th className="px-4 py-2 font-medium">Status</th>
-                <th className="px-4 py-2 font-medium">Priority</th>
-                <th className="px-4 py-2 font-medium">Assignee</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {issues.map((i) => {
-                const issueKey = `${project.key}-${i.number}`;
-                return (
-                  <tr key={i.number} data-testid="issue-row" className="hover:bg-zinc-50">
-                    <td className="px-4 py-2 font-mono whitespace-nowrap">
-                      <Link
-                        href={`/issues/${issueKey}`}
-                        data-testid="issue-key"
-                        className="font-semibold text-indigo-600 hover:underline"
-                      >
-                        {issueKey}
-                      </Link>
-                    </td>
-                    <td data-testid="issue-title" className="px-4 py-2 text-zinc-900">
-                      {i.title}
-                    </td>
-                    <td data-testid="issue-status" className="px-4 py-2 whitespace-nowrap">
-                      {STATUS_LABEL[i.status]}
-                    </td>
-                    <td data-testid="issue-priority" className="px-4 py-2 whitespace-nowrap">
-                      {PRIORITY_LABEL[i.priority]}
-                    </td>
-                    <td data-testid="issue-assignee" className="px-4 py-2 whitespace-nowrap text-zinc-700">
-                      {i.assignee ?? "Unassigned"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <IssueTable issues={issues.map(({ number, ...i }) => ({ ...i, key: `${project.key}-${number}` }))} />
       )}
     </>
   );
