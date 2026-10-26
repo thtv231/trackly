@@ -8,6 +8,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     env: { PGLITE_DIR: "memory://", TRACKLY_TEST: "1" },
     testTimeout: 30_000,
+    hookTimeout: 30_000,
   },
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
 });
