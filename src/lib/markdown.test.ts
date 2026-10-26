@@ -25,4 +25,10 @@ describe("Markdown", () => {
     expect(out).toContain("&lt;script&gt;");
     expect(out).toContain("<strong>ok</strong>");
   });
+
+  it("never renders a javascript: link (S20)", () => {
+    const out = html("[click](javascript:alert(1))");
+    expect(out).not.toContain("<a");
+    expect(out).not.toContain("href");
+  });
 });
