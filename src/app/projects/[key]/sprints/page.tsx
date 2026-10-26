@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format";
 import { ProjectHeader } from "../project-header";
 import { Backlog, type BacklogIssue } from "./backlog";
 import { NewSprintForm } from "./new-sprint-form";
+import { CompleteSprintButton } from "./complete-sprint-button";
 import { StartSprintButton } from "./start-sprint-button";
 
 type Props = { params: Promise<{ key: string }> };
@@ -17,6 +18,11 @@ type Sprint = {
   start: string;
   end: string;
   state: "planned" | "active" | "completed";
+  // frozen when the sprint is completed (S26)
+  completed_issues: number | null;
+  total_issues: number | null;
+  completed_points: number | null;
+  total_points: number | null;
 };
 type SprintIssue = BacklogIssue & { sprint_id: number; status: Status };
 
@@ -40,7 +46,8 @@ export default async function SprintsPage({ params }: Props) {
   );
   if (!project) notFound();
   const sprints = await query<Sprint>(
-    `SELECT id, name, state, to_char(start_date, 'YYYY-MM-DD') AS start, to_char(end_date, 'YYYY-MM-DD') AS "end"
+    `SELECT id, name, state, to_char(start_date, 'YYYY-MM-DD') AS start, to_char(end_date, 'YYYY-MM-DD') AS "end",
+            completed_issues, total_issues, completed_points, total_points
        FROM sprints WHERE project_id = $1
       ORDER BY start_date, id`,
     [project.id],
@@ -111,7 +118,14 @@ export default async function SprintsPage({ params }: Props) {
                   {points} points · {issues.length}{" "}
                   {issues.length === 1 ? "issue" : "issues"}
                 </p>
+                {s.state === "completed" && (
+                  <p data-testid="sprint-summary" className="mt-2 text-sm text-ink">
+                    Completed {s.completed_issues} of {s.total_issues} issues ({s.completed_points} of{" "}
+                    {s.total_points} points)
+                  </p>
+                )}
                 {canEdit && s.state === "planned" && <StartSprintButton sprintId={s.id} />}
+                {canEdit && s.state === "active" && <CompleteSprintButton sprintId={s.id} />}
                 {issues.length > 0 && (
                   <ul className="mt-3 divide-y divide-line border-t border-line">
                     {issues.map((i) => (
