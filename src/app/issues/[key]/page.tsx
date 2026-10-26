@@ -14,6 +14,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { Markdown } from "@/lib/markdown";
 import { IssueDetails, type Field } from "./issue-details";
+import { IssueLabels } from "./issue-labels";
 
 type Props = { params: Promise<{ key: string }> };
 type IssueDetail = {
@@ -32,6 +33,7 @@ type IssueDetail = {
   due_date: string | null;
   created_at: Date;
   resolved_at: Date | null;
+  labels: string[];
 };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -47,7 +49,10 @@ export default async function IssuePage({ params }: Props) {
   const [issue] = await query<IssueDetail>(
     `SELECT p.key AS project_key, p.name AS project_name, i.number, i.title, i.description, i.type,
             i.status, i.priority, a.name AS assignee, a.email AS assignee_email, r.name AS reporter, i.points,
-            to_char(i.due_date, 'YYYY-MM-DD') AS due_date, i.created_at, i.resolved_at
+            to_char(i.due_date, 'YYYY-MM-DD') AS due_date, i.created_at, i.resolved_at,
+            COALESCE((SELECT array_agg(l.name ORDER BY l.name)
+                        FROM issue_labels il JOIN labels l ON l.id = il.label_id
+                       WHERE il.issue_id = i.id), '{}') AS labels
        FROM issues i
        JOIN projects p ON p.id = i.project_id
        JOIN users r ON r.id = i.reporter_id
@@ -106,6 +111,7 @@ export default async function IssuePage({ params }: Props) {
           points: issue.points === null ? "" : String(issue.points),
         }}
         assignees={assignees}
+        sidebar={<IssueLabels issueKey={issueKey} labels={issue.labels} canEdit={canEdit} />}
       >
         <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h2 className="mb-3 text-sm font-medium text-zinc-500">Description</h2>

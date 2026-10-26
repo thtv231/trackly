@@ -15,6 +15,7 @@ type Props = {
   values: Values;
   assignees: { email: string; name: string }[];
   children: React.ReactNode;
+  sidebar?: React.ReactNode; // extra sidebar content below the fields
 };
 
 const input =
@@ -22,7 +23,7 @@ const input =
 
 // Title and sidebar of the issue page (S07). Edit swaps the title and the Priority, Assignee and Points
 // values for inputs in place; Save sends a PATCH and re-renders the page with the saved values.
-export function IssueDetails({ issueKey, canEdit, canDelete, fields, values, assignees, children }: Props) {
+export function IssueDetails({ issueKey, canEdit, canDelete, fields, values, assignees, children, sidebar }: Props) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(values);
@@ -231,6 +232,7 @@ export function IssueDetails({ issueKey, canEdit, canDelete, fields, values, ass
                 )}
               </div>
             ))}
+            {sidebar}
           </dl>
         </aside>
       </div>

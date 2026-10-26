@@ -56,12 +56,15 @@ export default async function ProjectIssues({ params, searchParams }: Props) {
     [key],
   );
   if (!project) notFound();
+  const label = typeof sp.label === "string" ? sp.label.trim().toLowerCase() : "";
   const issues = await query<DbIssue>(
     `SELECT i.number, i.title, i.status, i.priority, i.type, u.name AS assignee
        FROM issues i LEFT JOIN users u ON u.id = i.assignee_id
       WHERE i.project_id = $1
+        AND ($2 = '' OR EXISTS (SELECT 1 FROM issue_labels il JOIN labels l ON l.id = il.label_id
+                                 WHERE il.issue_id = i.id AND l.name = $2))
       ORDER BY i.number`,
-    [project.id],
+    [project.id, label],
   );
   return (
     <>
