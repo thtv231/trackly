@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -23,8 +25,15 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Lint
+        run: npm run lint
+
       - name: Unit tests
         run: npm run test
+
+      # Type-checks and builds for production, so a broken build can't pass CI.
+      - name: Production build
+        run: npm run build
 
       - name: Acceptance scoreboard
         run: npm run scoreboard
