@@ -14,6 +14,11 @@ const g = globalThis as unknown as { __tracklyPg?: Promise<PGlite>; __tracklySql
 
 function pglite(): Promise<PGlite> {
   g.__tracklyPg ??= (async () => {
+    // In production a missing DATABASE_URL is a config mistake: fail loudly instead of writing to a local
+    // (often temporary) disk. Set PGLITE_DIR to run production on PGlite on purpose.
+    if (process.env.NODE_ENV === "production" && !process.env.PGLITE_DIR) {
+      throw new Error("DATABASE_URL is not set (set PGLITE_DIR to use PGlite in production on purpose)");
+    }
     const dir = process.env.PGLITE_DIR ?? path.join(process.cwd(), ".data", "pglite");
     if (!dir.startsWith("memory://")) mkdirSync(dir, { recursive: true });
     const db = await PGlite.create(dir);

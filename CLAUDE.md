@@ -33,7 +33,7 @@ npm run db:reset            # reset dev DB (.data/pglite) to seed data; stop `np
 - **Domain:** statuses, types, priorities, points and labels are in `src/lib/domain.ts`; formatting in `src/lib/format.ts`. Issue keys `<PROJECT>-<n>` take `n` from `projects.next_number`: never reused, and safe under concurrent creates (S06).
 - **Pages/routes:** App Router under `src/app/`; server components query the DB directly. Tailwind v4.
 - **Test mode (`TRACKLY_TEST=1`):** Playwright starts its own `next dev -p 3100` with `PGLITE_DIR=.data/test` and `distDir=.next-test`, alongside your dev server. Test-only endpoints in `src/app/api/test/` return 404 outside test mode via `notInTestMode()` (`src/lib/testing.ts`). One worker, shared DB, 3 s action timeout.
-- **AI assistant (group F):** production calls Claude (`TRACKLY_AI_MODEL`, default `claude-opus-5-5`) with tool use; under test a scripted fake model reads its replies from `settings` and logs every request (keys in `src/lib/testing.ts`). Issue text reaches the model only inside tool results, writes need user confirmation, and there is no delete tool.
+- **AI assistant (group F):** production calls Claude (`TRACKLY_AI_MODEL`, default `claude-opus-5-5`), or Groq when only `GROQ_API_KEY` is set, with tool use; under test a scripted fake model reads its replies from `settings` and logs every request (keys in `src/lib/testing.ts`). Issue text reaches the model only inside tool results, writes need user confirmation, and there is no delete tool.
 
 ## Conventions the tests depend on
 - `data-testid` attributes named in `STORIES.md` are the UI/test contract: restyle freely, keep the IDs.
