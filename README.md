@@ -78,7 +78,7 @@ Before go-live, also decide on:
 |---|---|---|
 | `DATABASE_URL` | Production | Postgres connection string (postgres.js). Unset in dev = PGlite in `.data/pglite`. In production (`NODE_ENV=production`) the app errors without it, unless `PGLITE_DIR` is set. |
 | `ANTHROPIC_API_KEY` | For the assistant | Claude API key, read on the server only. `ANTHROPIC_AUTH_TOKEN` also works. Unset = "Assistant is not configured". |
-| `TRACKLY_AI_MODEL` | No | Assistant model, default `claude-opus-5-5`. A cheaper model lowers the cost per message. |
+| `TRACKLY_AI_MODEL` | No | Assistant model, default `claude-opus-5-5`. |
 | `PGLITE_DIR` | No | PGlite data folder (default `.data/pglite`). In production, set it only to run on PGlite on purpose (single process, persistent disk). |
 | `TRACKLY_TEST` | **Never in production** | `1` = test mode: enables the unauthenticated `/api/test/*` endpoints (database reset, fake clock), the fake clock and the fake model. Playwright sets it for its own server. |
 | `NODE_ENV` | Set by Next | `production` under `next build` / `next start`; turns on the `Secure` cookie flag and the `DATABASE_URL` check. |
