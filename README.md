@@ -6,12 +6,24 @@ notifications, webhooks, and an AI assistant built with the Claude API. During t
 one group of user stories at a time.
 
 ## Run it
+Needs Node.js 24 (the version CI uses) and npm.
 ```bash
 npm install
-npm run dev          # open http://localhost:3000
+npm run dev          # usually http://localhost:3000
 ```
+If port 3000 is already taken, Next picks the next free port (3001, …) and prints it: open the URL from the
+`npm run dev` output.
+
 Sign in with one of the demo accounts (password `trackly-demo`): `alice@trackly.test` (admin),
-`bob@trackly.test` and `carol@trackly.test` (members), `dave@trackly.test` (viewer).
+`bob@trackly.test` and `carol@trackly.test` (members), `dave@trackly.test` (viewer). After signing in, `/` is the
+projects page; each project lives at `/projects/<KEY>` (for example `/projects/TRK`).
+
+To sign in without a browser (curl, scripts), post JSON to `/api/login`; it sets the `trackly_session` cookie:
+```bash
+curl -c cookies.txt -H 'content-type: application/json' \
+  -d '{"email":"alice@trackly.test","password":"trackly-demo"}' http://localhost:3000/api/login
+curl -b cookies.txt http://localhost:3000/
+```
 
 No database to install: in development Trackly uses [PGlite](https://pglite.dev), a Postgres that runs inside Node and
 stores its data in `.data/` (see [ADR 0001](docs/adr/0001-pglite-locally-postgres-deployed.md)). `npm run db:reset`
@@ -31,7 +43,8 @@ npm run scoreboard               # all 40 acceptance tests, about 4 minutes
 The acceptance tests (the stories are in `STORIES.md`) start their own server on port 3100 with `TRACKLY_TEST=1`, a
 separate database in `.data/test`, a fake clock (Monday Nov 2, 2026 09:00 UTC) and a scripted fake model instead of
 Claude (see [ADR 0002](docs/adr/0002-fake-model-in-assistant-tests.md)). They never touch your dev server or call the
-real Claude API, so they are free and deterministic.
+real Claude API, so they are free and deterministic. Every run starts and compiles that server first, so even a
+single story takes about 2 minutes, almost all of it startup.
 
 **CI** (`.github/workflows/ci.yml`) runs lint, unit tests, a production build and the scoreboard on every pull request
 and on every push to `main`.
