@@ -29,7 +29,7 @@ No database to install: in development Trackly uses [PGlite](https://pglite.dev)
 stores its data in `.data/` (see [ADR 0001](docs/adr/0001-pglite-locally-postgres-deployed.md)). `npm run db:reset`
 puts the dev database back to the demo data (stop `npm run dev` first).
 
-The assistant panel needs `ANTHROPIC_API_KEY` (see [Environment variables](#environment-variables)); without it the
+The assistant panel needs `ANTHROPIC_API_KEY` or `GROQ_API_KEY` (see [Environment variables](#environment-variables)); without it the
 panel answers "Assistant is not configured" and the rest of the app works normally.
 
 ## Test it
@@ -78,7 +78,8 @@ Before go-live, also decide on:
 |---|---|---|
 | `DATABASE_URL` | Production | Postgres connection string (postgres.js). Unset in dev = PGlite in `.data/pglite`. In production (`NODE_ENV=production`) the app errors without it, unless `PGLITE_DIR` is set. |
 | `ANTHROPIC_API_KEY` | For the assistant | Claude API key, read on the server only. `ANTHROPIC_AUTH_TOKEN` also works. Unset = "Assistant is not configured". |
-| `TRACKLY_AI_MODEL` | No | Assistant model, default `claude-opus-5-5`. |
+| `GROQ_API_KEY` | Alternative | Groq API key, used when no Anthropic key is set (`groq-model.ts`, OpenAI-compatible API). |
+| `TRACKLY_AI_MODEL` | No | Assistant model: default `claude-opus-5-5` with Claude, `openai/gpt-oss-120b` with Groq. |
 | `PGLITE_DIR` | No | PGlite data folder (default `.data/pglite`). In production, set it only to run on PGlite on purpose (single process, persistent disk). |
 | `TRACKLY_TEST` | **Never in production** | `1` = test mode: enables the unauthenticated `/api/test/*` endpoints (database reset, fake clock), the fake clock and the fake model. Playwright sets it for its own server. |
 | `NODE_ENV` | Set by Next | `production` under `next build` / `next start`; turns on the `Secure` cookie flag and the `DATABASE_URL` check. |

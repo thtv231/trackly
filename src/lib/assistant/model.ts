@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { ASSISTANT_CONFIGURED, isTestMode, readJsonSetting } from "../testing";
 
-// The assistant talks to "a model": Claude in production, the scripted fake model under test (group F).
+// The assistant talks to "a model": Claude (or Groq) in production, the scripted fake model under test (group F).
 // Both take the same request and report text deltas as they arrive.
 
 export type ModelRequest = {
@@ -26,6 +26,7 @@ export async function getModel(): Promise<Model | null> {
     if (!(await readJsonSetting(ASSISTANT_CONFIGURED, true))) return null;
     return (await import("./fake-model")).fakeModel;
   }
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_AUTH_TOKEN) return null;
-  return (await import("./claude-model")).claudeModel;
+  if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) return (await import("./claude-model")).claudeModel;
+  if (process.env.GROQ_API_KEY) return (await import("./groq-model")).groqModel;
+  return null;
 }
