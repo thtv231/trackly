@@ -176,7 +176,7 @@ export function AssistantPanel({ projectKey }: { projectKey: string }) {
                       data-testid="assistant-message"
                       className="mr-8 rounded-lg bg-surface px-3 py-2 whitespace-pre-wrap text-ink"
                     >
-                      {item.text}
+                      {withBold(item.text)}
                     </p>
                   );
                 case "tool":
@@ -279,4 +279,9 @@ export function AssistantPanel({ projectKey }: { projectKey: string }) {
       )}
     </>
   );
+}
+
+/** Models sometimes answer in Markdown; show **bold** as bold and drop the stray asterisks instead of printing them. */
+function withBold(text: string) {
+  return text.split(/\*\*(.+?)\*\*/g).map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part.replace(/\*\*/g, "")));
 }

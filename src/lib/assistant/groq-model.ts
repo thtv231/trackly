@@ -42,6 +42,30 @@ function toChat(system: string, messages: Anthropic.MessageParam[]): ChatMessage
   return out;
 }
 
+// Groq validates tool arguments against the schema, and the model often sends null for fields it leaves out.
+// Optional fields that don't take null accept it here, and those nulls are dropped before the loop sees the input
+// (fields where null has a meaning, like update_issue's assignee, keep it).
+type Prop = { type?: string | string[]; enum?: unknown[] };
+const takesNull = (p: Prop) => [p.type].flat().includes("null");
+
+function nullableOptional(schema: Anthropic.Tool["input_schema"]): Anthropic.Tool["input_schema"] {
+  const required = new Set(schema.required ?? []);
+  const props = Object.fromEntries(
+    Object.entries((schema.properties ?? {}) as Record<string, Prop>).map(([k, p]) =>
+      required.has(k) || !p.type || takesNull(p)
+        ? [k, p]
+        : [k, { ...p, type: [...[p.type].flat(), "null"], ...(p.enum ? { enum: [...p.enum, null] } : {}) }],
+    ),
+  );
+  return { ...schema, properties: props };
+}
+
+function dropAddedNulls(input: unknown, schema: Anthropic.Tool["input_schema"] | undefined): unknown {
+  if (!input || typeof input !== "object" || !schema) return input;
+  const props = (schema.properties ?? {}) as Record<string, Prop>;
+  return Object.fromEntries(Object.entries(input).filter(([k, v]) => v !== null || (props[k] && takesNull(props[k]))));
+}
+
 const STOP: Record<string, string> = { tool_calls: "tool_use", stop: "end_turn", length: "max_tokens" };
 
 export const groqModel: Model = {
@@ -55,7 +79,7 @@ export const groqModel: Model = {
         messages: toChat(req.system, req.messages),
         tools: req.tools.map((t) => ({
           type: "function",
-          function: { name: t.name, description: t.description, parameters: t.input_schema },
+          function: { name: t.name, description: t.description, parameters: nullableOptional(t.input_schema) },
         })),
         stream: true,
       }),
@@ -76,7 +100,10 @@ export const groqModel: Model = {
       for (const line of lines) {
         const data = line.startsWith("data:") ? line.slice(5).trim() : "";
         if (!data || data === "[DONE]") continue;
-        const choice = JSON.parse(data).choices?.[0];
+        const chunk = JSON.parse(data);
+        // Groq reports mid-stream failures (e.g. tool_use_failed) as an error event, not an HTTP status.
+        if (chunk.error) throw new Error(`Groq stream error: ${chunk.error.code ?? chunk.error.message}`);
+        const choice = chunk.choices?.[0];
         if (!choice) continue;
         const delta = choice.delta ?? {};
         if (delta.content) {
@@ -98,7 +125,7 @@ export const groqModel: Model = {
     for (const c of calls.filter(Boolean)) {
       let input: unknown = {};
       try {
-        input = c.args ? JSON.parse(c.args) : {};
+        input = c.args ? dropAddedNulls(JSON.parse(c.args), req.tools.find((t) => t.name === c.name)?.input_schema) : {};
       } catch {
         input = {};
       }
